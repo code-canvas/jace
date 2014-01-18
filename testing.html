@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+        <title>API Testing</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width">
+        <link rel="stylesheet" type="text/css" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/css/bootstrap.min.css" />
+    </head>
+    <body>
+
+        <!-- examples for API -->
+        <div class="container" style="margin-top:20px;">
+            
+            <!-- login form -->
+            <div class="form-inline" role="form">
+                <div class="form-group">
+                    <label class="sr-only" for="user">User:</label>
+                    <input type="email" class="form-control" id="user" placeholder="User">
+                </div>
+                <div class="form-group">
+                    <label class="sr-only" for="password">Password</label>
+                    <input type="password" class="form-control" id="password" placeholder="Password">
+                </div>
+                <button id="btn_auth" class="btn btn-primary">Authenticate Me</button>
+            </div>
+
+            <hr>
+            
+            <!-- example buttons -->
+            <button id="btn_tables" class="btn btn-large">Get Table Names</button>
+            <button id="btn_getLocalKey" class="btn btn-large">Get Stored Key</button>
+            <button id="btn_getStaff" class="btn btn-large">Get All Staff</button>
+            <button id="btn_getStaff_user" class="btn btn-large">Show Admin User</button>
+            <button id="btn_getStaff_new" class="btn btn-large">Show New User</button>
+
+            <hr>
+            
+            <!-- staff member list -->
+            <div id="userList" class="hide">
+
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Staff Member</th>
+                            <th>User Name</th>
+                            <th>Security Role</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="userlistBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- new user form -->
+            <div id="newUserForm" class="hide">
+                <legend>New User</legend>
+                <div class="form-horizontal" role="form">
+                    <div class="form-group">
+                        <label for="add_name" class="col-sm-2 control-label">Name</label>
+                        <div class="col-sm-10">
+                            <input type="email" class="form-control" id="add_name" placeholder="Name">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="add_userName" class="col-sm-2 control-label">User</label>
+                        <div class="col-sm-10">
+                            <input type="email" class="form-control" id="add_userName" placeholder="User Name">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="add_password" class="col-sm-2 control-label">Password</label>
+                        <div class="col-sm-10">
+                            <input type="password" class="form-control" id="add_password" placeholder="Password">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="col-sm-offset-2 col-sm-10">
+                            <button id="btn_newUser" class="btn btn-large">Create User</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- display box -->
+            <textarea id="display" style="width:100%; height:200px; border: 1px solid #DDDDDD;"></textarea>
+        </div>
+
+        <script src="https://dev.firmpos.net/js/jquery-1.7.2.min.js"></script>
+        <script src="https://netdna.bootstrapcdn.com/bootstrap/3.0.3/js/bootstrap.min.js"></script>
+        <script type="text/javascript">
+
+            $(function(){
+
+                var api_url = "https://api.yourdomain.com";
+                var authKey;
+                var authTimeStamp;
+
+                //Simulate data you would normally store in your application
+                var locationID = "K8RYZ2zReWYy99hgeH4je";
+                var apiKey = '778263487IUYIUQYWE98SADJKJHKJ7';
+
+                /*
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+
+                    initally authenticate the user  // default: admin/password
+
+                    do this before access is granted to dataStore
+
+                    there is 4 factors that we use to verify this user:
+                        - the ID for the location they belong to
+                        - the application API key
+                        - the username
+                        - the password
+                    
+                */
+                $("#btn_auth").on("click", function(){
+
+                    var user = $("#user").val();
+                    var password = $("#password").val();
+
+                    postData = {
+                        "locationID" : locationID,
+                        "apiKey" : apiKey,
+                        "userName" : user,
+                        "password" : password
+                    }
+
+                    //define the endPoint URL for the data you want
+                    var url = api_url + "/auth";
+
+                    //submit to API
+                    _ajax(postData, url, function(json){
+
+                        //success... display the JSON string 
+                        $("#display").val( JSON.stringify(json) );
+                            
+                        if ( json.status == "success" ) {
+
+                            //this is the AUTH KEY... store this securely in your app
+                            authKey = json.results.key;
+
+                            //this is the TIMESTAMP that verifies the key. Also securely store
+                            authTimeStamp = json.results.timeStamp;
+
+                            /*
+                                you will pass these two items upon each additional POST to the API
+                                using HTTPS and the API will verify the access without having to authenticate each time
+
+                                also returns user data: UID, Name and securityRole for your app
+
+                            */
+
+                            //storing raw in local storage for demo simplicy
+                            window.localStorage.setItem('authKey', authKey);
+                            window.localStorage.setItem('authTimeStamp', authTimeStamp);
+
+                            //display the key and timestamp
+                            $("#display").val(authKey + " - " + authTimeStamp);
+
+                        } else {
+
+                            alert( json.msg );
+                        }
+
+                    });
+                });
+
+                /*
+                    
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+
+                    for the demo.... get the locally stored key and timestamp for simulation
+
+                */
+
+                $("#btn_getLocalKey").on("click", function(){
+
+                    authKey = window.localStorage.getItem('authKey');
+                    authTimeStamp = window.localStorage.getItem('authTimeStamp');
+
+                    $("#display").val(authKey + " - " + authTimeStamp);
+
+                });
+
+                /*
+                    
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+
+                    this queries the API for a list of all staff... notice the AUTH section
+                    the API uses 4 authentication factors to verify this is a valid request
+
+                        - the AUTH key
+                        - the TIMESTAMP included when you received the key
+                        - the API Application key
+                        - the ID of the location the user belongs to
+
+                    you can modify this in the security.php module if you want more/less AUTH factors but this
+                    makes it pretty hard to guess :-)
+
+                    the "returnFields" section tells the API what columns to return
+
+                    the "orderBy" tells the API how to order the returned data
+
+                */
+                $("#btn_getStaff").on("click", function(){
+
+                    postData = {
+                        "do" : "listStaff",
+                        "auth" : {
+                            "authKey" : authKey,
+                            "authTimeStamp" : authTimeStamp,
+                            "apiKey" : apiKey,
+                            "locationID" : locationID
+                        },
+                        "returnFields" : [
+                            "uid", "userName", "employeeName", "securityRole"
+                        ],
+                        "pageStart" : "0",  //here for example... 
+                        "pageLimit" : "50", //you can paginate the results
+                        "orderBy" : [
+                            {
+                            
+                                "field" : "employeeName",
+                                "direction" : "asc"
+                            }
+                        ]
+                    }
+
+                    //define the endPoint URL for the data you want
+                    var url = api_url + "/staff";
+
+                    //submit to API
+                    _ajax(postData, url, function(json){
+
+                        if ( json.status == "success" ) {
+
+                            //get results
+                            var results = json.results;
+
+                            /*
+
+                                for the demo... we will list the staff with a more readable securityRole 
+
+                                securityRole is define by an integer value between 1-7 (1 being most powerful, 7 being least powerful)
+
+                            */
+
+                            //init template item object
+                            var staffItem = {};
+
+                            //clear the table
+                            $("#userlistBody").html("");
+
+                            var roles = [
+                                "Owner", 
+                                "General Manager", 
+                                "Regional Manager", 
+                                "Location Manager", 
+                                "Assistant Manager", 
+                                "Front Desk Staff", 
+                                "General Staff" 
+                            ];
+
+                            //loop the results
+                            $.each(results, function(item, value){
+
+                                //build the staff item
+                                staffItem = {
+                                    "uid" : value.uid,
+                                    "employeeName" : value.employeeName,
+                                    "userName" : value.userName,
+                                    "securityRole" : roles[parseInt(value.securityRole)-1]
+                                }
+
+                                //create the line item for the table
+                                var template = '<tr><td id="" data-uid="' + staffItem.uid + '">' + staffItem.employeeName + '</td><td id="">' + staffItem.userName + '</td> <td id="">' + staffItem.securityRole + '</td></tr>'
+
+                                //append to the table
+                                $("#userlistBody").append(template);
+                                
+                                //show the user list
+                                $("#userList").removeClass("hide");
+
+                            });
+
+                        } else {
+
+                            alert( json.msg );
+                        }
+
+                        //log
+                        $("#display").val(JSON.stringify(json));
+                    });
+                });
+                
+                /*
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+
+                    example to demonstrate pulling data by ID
+                */
+
+                //list staff member: admin
+                $("#btn_getStaff_user").on("click", function(){
+
+                    postData = {
+                        "do" : "listStaff",
+                        "auth" : {
+                            "authKey" : authKey,
+                            "authTimeStamp" : authTimeStamp,
+                            "apiKey" : apiKey,
+                            "locationID" : locationID
+                        },
+                        "queryModel" : "default",    
+                        "returnFields" : [
+                            "userName", "employeeName", "securityRole" //columns we want to return
+                        ],
+                        "pageStart" : "0",   //here for example... 
+                        "pageLimit" : "50", //you can paginate the results
+                        "parameters" : [
+                            {
+                            
+                                "field" : "uid",                     //the unique ID column we are querying
+                                "operator" : "=",                   //this is one of many operators you can use
+                                "value" : "4bfV5s77j8UkQETTyDH6H", //this is the ADMIN user unique ID... yours will be different
+                                "condOper" : "AND"                //this allows you to use AND/OR operators with multiple parameters
+                            }
+                        ],
+                        "orderBy" : [
+                            {
+                            
+                                "field" : "userName",
+                                "direction" : "asc"
+                            }
+                        ]
+                    }
+
+                    //define the endPoint URL for the data you want
+                    var url = api_url + "/staff";
+
+                    //submit to API
+                    _ajax(postData, url, function(json){
+
+                        //success
+                         $("#display").val(JSON.stringify(json));
+
+                    });
+                });
+
+                /*
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+
+                    demonstrates how to add an item
+
+                    returns the unique ID of the new item 
+                */
+
+                //Add staff member
+                $("#btn_newUser").on("click", function(){
+
+                    var employeeName = $("#add_name").val();
+                    var userName = $("#add_userName").val();
+                    var password = $("#add_password").val();
+
+                    postData = {
+                        "do" : "addStaff",
+                        "auth" : {
+                            "authKey" : authKey,
+                            "authTimeStamp" : authTimeStamp,
+                            "apiKey" : apiKey,
+                            "locationID" : locationID
+                        },
+                        "queryModel" : "default",    
+                        "payload" : "id",    
+                        "addFields" : {
+                            "uid" : "",
+                            "employeeName" : employeeName,
+                            "locationID" : "K8RYZ2zReWYy99hgeH4je",  //location ID stored in your application
+                            "userName" : userName,
+                            "password" : password,
+                            "securityRole" : "1",
+                            "status" : "1"
+
+                        }
+                    }
+
+                    //define the endPoint URL for the data you want
+                    var url = api_url + "/staff";
+
+                    _ajax(postData, url, function(json){
+
+                        //success
+                        $("#display").val(JSON.stringify(json));
+
+                    });
+                });
+                
+                /*
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+
+                    show the new user form
+
+                */   
+                $("#btn_getStaff_new").on("click", function(){
+
+                    $("#newUserForm").removeClass("hide");
+                });
+
+                /*
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+
+                    this demonstrates how to return all column names from a table
+                    to assist in building data models
+
+                */      
+
+                $("#btn_tables").on("click", function(){
+
+                    postData = {
+                        "do" : "buildModel",
+                        "auth" : {
+                            "authKey" : authKey,
+                            "authTimeStamp" : authTimeStamp,
+                            "apiKey" : apiKey,
+                            "locationID" : locationID
+                        },
+                        "tableName" : "staff"
+                    }
+
+                    //define the endPoint URL for the data you want
+                    var url = api_url + "/model";
+
+                    _ajax(postData, url, function(json){
+
+                        //success
+                        $("#display").val(JSON.stringify(json));
+
+                    });
+                });
+
+                /*  
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+                    *******************************************
+
+                    this demonstrates how to update a record
+
+                    "updateFields" tells the API what columns to update 
+                        - "columnName" : "value"
+
+                */  
+
+                $("#updateStaff").on("click", function(){
+
+                    postData = {
+                        "do" : "updateStaff",
+                        "auth" : {
+                            "authKey" : authKey,
+                            "authTimeStamp" : authTimeStamp,
+                            "apiKey" : apiKey,
+                            "locationID" : locationID
+                        },
+                        "queryModel" : "default", 
+                        "parameters" : [
+                            {
+                            
+                                "field" : "uid",
+                                "operator" : "=",
+                                "value" : "52c976c740dc01388934855",
+                                "condOper" : "AND"
+                            }
+                        ],      
+                        "updateFields" : {
+                            "employeeName" : "Mike Smith",
+                            "userName" : "1admin",
+                            "password" : "password1"
+
+                        }
+                    }
+
+                    //define the endPoint URL for the data you want
+                    var url = api_url + "/staff";
+
+                    _ajax(postData, url, function(json){
+
+                        //success... show the response
+                        $("#display").val(JSON.stringify(json));
+
+                    });
+                });
+            });
+            
+            /*
+                *******************************************
+                *******************************************
+                *******************************************
+                *******************************************
+                *******************************************
+                *******************************************
+                *******************************************
+                *******************************************
+                *******************************************
+
+                ajax helper function
+
+            */
+            function _ajax(data, url, success) {
+
+                $.ajax({
+                    type: "POST",
+                    url: url,
+                    data: data, 
+                    timeout: function(){
+                        alert("Couldn't reach the server");
+                    },
+                    success: function(json){
+
+                       success(json);
+                    }
+                });
+            }
+
+        </script>
+    </body>
+</html>
